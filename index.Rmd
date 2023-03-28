@@ -1,0 +1,597 @@
+---
+title: "Understanding the spatio-temporal distribution of pollen in Toronto"
+author: Sara Zapata Marin
+role: Post doctoral researcher
+org: "Alexandra M. Schmidt"
+date: "2022-11-15"
+output:
+  xaringan::moon_reader:
+    anchor_sections: FALSE
+    css: ["default", "css/theme.css", "css/fonts.css"]
+    seal: false 
+    lib_dir: libs
+    nature:
+      highlightStyle: solarized-light
+      highlightLanguage: ["r", "css", "yaml"]
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+---
+
+```{r xaringan-panelset, echo=FALSE}
+xaringanExtra::use_panelset()
+# xaringanExtra::use_progress_bar(color = "#a6b155", location = "bottom")
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(emo)
+
+```
+
+class: title-slide, left, middle
+
+.pull-left[
+
+# `r rmarkdown::metadata$title`
+
+### `r rmarkdown::metadata$author`
+
+### `r rmarkdown::metadata$date`
+]
+
+---
+
+name: hello
+class: middle, left, inverse
+background-size: contain
+background-position: right
+
+
+## Hello
+
+For those who don't know me ...
+
+- I come from Mexico and I have an undergraduate degree in Physics Engineering 
+
+- During my Ph.D. I worked with Alex M. Schmidt developing spatio-temporal models for environmental data
+
+- She taught me everything I know about Bayesian statistics and spatial statistics
+
+- Currently, I am working as a Postdoctoral researcher
+
+---
+background-image: url("img/lemontrealer.jpg")
+background-position: right
+background-size: contain
+
+.pull-left[
+# What was my PhD about?
+
+- Spatial statistical models for environmental processes.
+  1. Pollen distribution in Toronto
+  2. Distribution of Volatile Organic Compounds in Montreal
+  
+]
+
+.pull-right[
+.footnote[Art by [Diane Obomsawin](https://lemontrealer.com/diane-obomsawin)]
+]
+
+
+
+---
+
+name: outline
+class: middle, left, inverse
+
+# Outline
+
+1. Introduction 
+2. Pollen dispersion in Toronto
+  - Accounting for the zeros
+  - Temporal misalignment
+3. Future work
+4. Conclusions
+
+
+---
+# Spatial data
+**Areal:** Measurements are summarized over a region (e.g., neighborhoods, provinces, counties, etc.)
+.center[
+```{r echo=FALSE, out.width='55%'}
+knitr::include_graphics("img/lattice.jpg")
+```
+]
+.footnote[Schmidt, A.M. and Nobre, W.S. (2022). *Conditional Autoregressive (CAR) Model*]
+---
+
+# Spatial data
+**Point pattern:** The variables of interest are the locations of a random event (e.g. locations of a certain species)
+.center[
+```{r echo=FALSE, out.width='80%'}
+knitr::include_graphics("img/pointpattern.jpg")
+```
+]
+.footnote[Banerjee, Sudipto, Bradley P. Carlin, and Alan E. Gelfand. *Hierarchical modeling and analysis for spatial data.*]
+
+---
+
+# Spatial data
+**Point-referenced:** Measurements are taken at fixed locations (e.g., monitoring stations)
+
+.center[
+```{r echo=FALSE, out.width='50%'}
+knitr::include_graphics("img/geostatistics.png")
+```
+]
+---
+
+# Linear regression model
+
+The basic linear regression approach is used to model the effect of independent variables on the value of a dependent variable,
+
+$$\boldsymbol{Y} = \boldsymbol{X'}\boldsymbol{\beta} + \boldsymbol{\epsilon},$$
+
+where 
+
+--
+
+- $\boldsymbol{Y} = (y_1, \dots , y_n)'$ is a vector of observations,
+
+--
+- $\boldsymbol{X}$ is a $n \times k$ matrix of independent variables and an intercept,
+
+--
+- $\boldsymbol{\epsilon}$ the vector of errors for each observation
+
+--
+- and we assume that the errors, $\epsilon_i∼N(0,\tau^2)$ are independent. 
+
+---
+# How to accomodate for spatial structure?
+
+- The data usually consist of measurements of $\boldsymbol{X}$ and $\boldsymbol{Y}$ taken at specific locations (s), so we have $Y(s)$ and $X(s)$.
+
+--
+
+- Sometimes, the locations are ignored and other estimation techniques are used to understand the effects of $\boldsymbol{X}$ on $\boldsymbol{Y}$.
+
+--
+- How to incorporate the spatial locations into our model?
+
+---
+
+class: map-slide, center, middle, inverse
+
+# Tobler's first law of geography
+
+> "everything is related to everything else, but near things are more related than distant things"
+>
+> --- Tobler W., (1970)
+
+---
+# Spatial autocorrelation
+
+- Observations that are closer to each other tend to be more alike (**location similarity**).
+
+- We want to account for spatial dependence in the error term and the dependent variable.
+
+- **Spatial autocorrelation** describes the degree to which observations at specific locations are similar to each other. 
+
+- It is necessary to impose sufficient constraints such that a finite number of parameters that characterize the **spatial structure** can be efficiently estimated.
+
+---
+# Spatial autocorrelation
+
+- In **geostatistics** the covariance between locations can be expressed as a continuous function of the distance between them, such that,
+
+$$Cov(Y(s_i), Y(s_{i'})) = \sigma^2 \rho(d_{ii'})$$
+
+where $d_{ii'}$ is the distance between the two locations.
+--
+
+- So the model becomes, 
+
+$$ Y(s) = \boldsymbol{X'}(s)\boldsymbol{\beta} + \nu(s) + \epsilon(s) ,$$
+where  $\epsilon(s) \sim N(0, \tau^2)$  and $\boldsymbol{\nu} = (\nu(s_1),\dots, \nu(s_n))$follows a multivariate normal distribution with mean zero and covariance $\sigma^2\rho(\boldsymbol{d})$.
+
+---
+
+# Spatio-temporal models
+
+- In environmental processes we are not only interested in the spatial structure, but also how this surface changes over time.
+
+--
+
+- Sometimes, ongoing temporal measurements are collected at monitoring sites producing long-time series of data. 
+
+--
+
+- One option is to assume that $Y_t(s)$ is described by a spatio-temporal model of the form,
+
+$$Y_t(s)=\boldsymbol{X_t'}(s)\boldsymbol{\beta_t}(s) + e_t(s)$$
+
+where $\boldsymbol{\beta_t}(s)$ can be constant across time, space, or both. 
+
+The residual $\boldsymbol{e_t}(s)$ can be rewritten as the sum of two independent processes: **white noise** $\boldsymbol{\epsilon_t}(s)$ and a **spatio-temporal process** $\boldsymbol{\omega_t}(s)$.
+
+---
+
+class: center, toronto2-slide, inverse
+
+# Spatio-temporal modelling of pollen concentration in Toronto, Canada 
+
+
+---
+
+# Motivation
+
+- Little is known about the spatial distribution of pollen concentrations within cities as pollen levels are typically recorded at a single monitoring site.​
+
+  - Weinberger et al., 2018: Intra-urban variation in tree pollen in NYC​
+
+  - Hjort et al., 2016: Land use regression model for grass pollen in the Helsinki area​
+
+- “Epidemiological studies using a single pollen station as a proxy for pollen concentrations are prone to significant measurement error if the study area is climatically variable.” (Katz et al. 2019, Katz and Batterman 2020)​
+
+- Further evidence is needed in order to better establish the spatio-temporal exposure to pollen within a study area​
+
+    ​
+---
+
+class: inverse
+
+background-image: url("img/locations.png")
+background-position: right
+background-size: 50%
+
+.pull-left[
+
+# The data
+
+- .remark-text[Daily and weekly measurements] of pollen concentration in Toronto (18 sites), Aerobiology Research Laboratory monitoring campaign 2018 (From mid-March to mid-October).
+
+- .remark-text[Pollen types:] grass pollen, weed pollen, tree pollen and total pollen.
+
+- .remark-text[Local variables:] distance to highways, road land use, buildings land use, etc.
+
+
+- .remark-text[Weather-related variables:] temperature, precipitation, humidity, wind speed and direction.
+
+]
+
+---
+
+class: center, middle
+
+# The data
+
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics("img/one_site.jpg")
+```
+---
+
+class: inverse
+
+# The data
+
+.pull-left[
+![your caption here](img/Daily.gif)
+]
+.pull-right[
+![your caption here](img/Weekly.gif)
+]
+---
+
+class: inverse
+
+# Objectives
+
+1. .remark-text[High number of zeros]
+  - Because of the seasonality of each type of pollen we need to account for the high number of zeros in the data.
+
+2. .remark-text[Temporal misalignment]
+ - Propose a model that accounts for the fact that there are weekly and daily measurements.
+
+3. .remark-text[High number of zeros AND temporal misalignment]
+
+---
+
+class: left, middle
+
+background-image: url("img/trees.jpg")
+background-position: right
+background-size: contain
+
+
+.pull-left[
+
+#  Objective 1: Account for the high number of zeros
+
+
+]
+
+---
+
+# Methods
+
+To account for the high number of zeros we propose a Hurdle-log-normal model which is a mixture between a Bernoulli distribution and a log-normal distribution defined as,
+
+$$\begin{split}p(y_t(s) \mid \rho_t(s), \lambda_t(s)) = \begin{cases}
+&\rho_t(s) & y_t(s) = 0, \\
+&(1−\rho_t(s))p(y_t(s) \mid  \lambda_t(s)) & y_t(s) >  0, \end{cases}\end{split}$$
+
+where $y_t(s)$ is the pollen concentration at week $t$ and location $s$. 
+
+- The positive values follow a lognormal distribution with parameters $\mu_t(s)$ and $\sigma^2$,
+
+$$(y_t(s) \mid \mu_t(s), \sigma^2) \sim lognormal(\mu_t(s), \sigma^2),$$
+---
+
+# Methods
+
+Where $\mu_t(s)$ is defined as,
+
+
+$$\mu_t(s) = \boldsymbol{\alpha}\boldsymbol{x}(s) + \boldsymbol{\beta}\boldsymbol{u_t}(s) + \boldsymbol{\gamma} \boldsymbol{z}_t + \theta_t$$
+--
+
+- $\boldsymbol{x}(s)$  is a vector of .remark-text[spatial covariates]
+
+--
+
+- $\boldsymbol{u}_t(s)$ is a vector containing a .remark-text[vegetation] measurement (TC greenness) and a .remark-text[ground composition] measurement (TC brightness) for each site $s$ at each time $t$.
+
+--
+
+- $\boldsymbol{z}_t$ is a vector of .remark-text[weather-related covariates]
+
+--
+          		                 	
+- $\theta_t$ is a .remark-text[time-varying mean] which will capture the weekly overall temporal mean across sites and it follows
+
+$$\theta_t = \theta_{t-1} + \omega_t , \qquad  \omega_t(s) \sim N(0, W)$$
+---
+
+class: inverse
+
+# Methods 
+
+We tested 4 models with different definitions of $\rho_t(s)$
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics("img/Table1.jpg")
+```
+
+---
+ 
+# Probability and state vector
+
+```{r echo=FALSE, out.width='90%'}
+knitr::include_graphics("img/Figure5_v2.png")
+```
+
+---
+
+# Predicted surface
+ 
+![your caption here](img/total.gif)
+
+
+---
+
+class: left, middle, inverse
+
+background-image: url("img/forest.jpg")
+background-position: right
+background-size: contain
+
+
+.pull-left[
+
+# Objective 2: Temporal misalignment
+
+
+]
+
+
+---
+
+# Methods
+
+Let $\{Y_t(s); s \in \mathbb{R}^d; t = 1,\cdots, T\}$ be a spatio-temporal process such that
+$\boldsymbol{Y}_t = (Y_t(s_1), \cdots, Y_t(s_n))'$, we assume that $\boldsymbol{Y}_t \sim N(\boldsymbol{\mu}_t, \boldsymbol{\Sigma})$ where,
+
+$$\boldsymbol{\mu}_t = \bf{F}'_t\boldsymbol{\theta}_t+\boldsymbol{X'\beta}$$
+where the state equation is defined as,
+
+$$\boldsymbol{\theta}_t = \bf{G}_t\boldsymbol{\theta}_{t-1} + \boldsymbol{\omega}_t \qquad \boldsymbol{\omega}_t \sim N(0, \boldsymbol{W})$$
+
+--
+
+- $\boldsymbol{F}_t$ is a known $q \times n$ matrix containing temporal covariates,
+
+- $\boldsymbol{G}_t$ is a $q \times q$ evolution matrix,
+
+
+- $\boldsymbol{X}$ is a matrix containing all land-use covariates and coordinates of the sites,
+
+- $\boldsymbol{\Sigma} = \sigma^2exp(-\boldsymbol{d}/\phi) + \tau^2\boldsymbol{I}$, where $\sigma^2$ is the partial sill, $\phi$ is the spatial range, and $\tau^2$ is the nugget effect.
+
+---
+
+# Methods
+
+Let $\{Y_t(s); s \in \mathbb{R}^d; t = 1,\cdots, T\}$ be a spatio-temporal process such that
+$\boldsymbol{Y}_t = (Y_t(s_1), \cdots, Y_t(s_n))'$, we assume that $\boldsymbol{Y}_t \sim N(\boldsymbol{\mu}_t, \boldsymbol{\Sigma})$ where,
+
+$$\boldsymbol{\mu}_t = \bf{F}'_t\boldsymbol{\theta}_t+\boldsymbol{X\beta}$$
+
+Based on conditional independence on $\boldsymbol{Y}_t$, the aggregated measurements are defined as,
+
+$$\boldsymbol{Z}_k = \dfrac{1}{r}\sum^r_{i=1}\boldsymbol{Y}_{rk+i} \sim N\left(\dfrac{1}{r}\sum^r_{i=1}\boldsymbol{\mu}_{rk+i}, \dfrac{1}{r}\boldsymbol{\Sigma}\right)$$
+
+---
+
+class: inverse
+
+# Daily values at the weekly sites
+
+Using the properties of the multivariate normal distribution we have,
+
+```{r echo=FALSE, out.width='50%'}
+knitr::include_graphics("img/matrix.jpg")
+```
+
+--
+
+- where $\boldsymbol{Y^U}_{rk+j}$ are the .remark-text[unobserved measurements] at the weekly sites,
+--
+
+- $\boldsymbol{Y^S}_{rk+j}$ are the .remark-text[observed daily measurements] at the daily sites,
+--
+
+- and $\boldsymbol{Z^U}_{k}$ are the .remark-text[observed weekly mean measurements] at the weekly sites.
+
+---
+class: inverse
+
+# Daily values at the weekly sites
+
+Using the properties of the multivariate normal distribution we have,
+
+```{r echo=FALSE, out.width='50%'}
+knitr::include_graphics("img/matrix.jpg")
+```
+
+Conditional on the model parameters the unobserved daily scale measurements are given by,
+
+$$\small{\boldsymbol{Y^U}_{rk+j} | \boldsymbol{Y^S}_{rk+j}, \boldsymbol{Z^U}_{k}, \boldsymbol{\Theta} \sim N(\boldsymbol{\mu^U}_{rk+j} + \boldsymbol{\Omega}_{12}\boldsymbol{\Omega}^{-1}_{22}(\boldsymbol{a^{SU}}_{rk+j}-\boldsymbol{\mu^{SU}}_{rk+j}), \boldsymbol{\Sigma^U}-\boldsymbol{\Omega}_{12}\boldsymbol{\Omega}^{-1}_{22}\boldsymbol{\Omega}_{21})}$$
+where $\small{\boldsymbol{a^{SU}}_{rk+j} = (\boldsymbol{y^S}_{rk+j},\boldsymbol{z^U}_{k})}$ and $\small{\boldsymbol{\mu^{SU}}_{rk+j} = (\boldsymbol{\mu^S}_{rk+j},\boldsymbol{\eta^U}_{k})}$
+
+
+---
+
+# Methods
+
+It is possible to obtain:
+
+- fine-scale measurements at aggregated sites,
+
+--
+
+- fine-scale measurements at unobserved sites,
+
+--
+
+- and the aggregated values at unobserved sites.
+
+---
+class: inverse
+
+# Coefficient estimates
+
+```{r echo=FALSE, out.width='80%'}
+knitr::include_graphics("img/coeff_estimates.png")
+```
+
+---
+class: inverse
+
+## Aggregated estimated daily values at the weekly sites
+
+```{r echo=FALSE, out.width='70%'}
+knitr::include_graphics("img/weekly_modelled.png")
+```
+
+---
+
+# Predicted surface
+
+![your caption here](img/outfile.gif)
+
+
+---
+
+# Conclusions
+
+--
+
+- We analyzed spatio-temporal variations in aeroallergen concentrations throughout the pollen season for different types of pollen within a city.
+
+--
+
+- We were able to propose a model to account for the .remark-text[temporal misalignment] in the data.
+
+--
+
+- We estimated the unobserved daily measurements at the weekly sites.
+
+--
+
+- We found different estimates for the fixed effects depending on the .remark-text[temporal scale].
+
+--
+
+- The predicted surfaces will help .remark-text[future epidemiological studies] to find possible associations between pollen levels and some health outcome like respiratory allergies.
+
+---
+
+class: center, middle, inverse
+
+# Is that it?
+
+--
+
+# Nope
+
+---
+
+# Future work
+
+- .remark-text[Aggregated Hurdle model]:
+  1. Is the probability constant or does it change across days?
+  2. Is it another hurdle model with different probabilities?
+--
+
+- How to account for the temporal misalignment AND the high number of measurements equal to zero at the same time?
+
+---
+
+class: inverse
+
+# General conclusions
+
+- Hierarchical Bayesian methods can easily accommodate more complex structures when analyzing the distribution of aeroallergens across space and time.
+
+--
+
+- This work shows how by considering a spatial or spatio-temporal structure, it is possible to learn about the spatial patterns and the temporal dynamics of aeroallergens dispersion. 
+
+
+
+---
+
+class: center, left, inverse
+
+.pull-left[
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics("img/sponsors.png")
+```
+]
+
+.pull-right[
+
+# Acknowledgements
+
+- Dr Alexandra Schmidt (EBOH, McGill)​
+- Dr Scott Weichenthal (EBOH, McGill)​
+- Dr Daniel S.W. Katz (School of Public Health, University of Michigan-Ann Arbor)​
+- Dr. Tim Takaro (SFU)​
+- Dr. Jeff Brook (University of Toronto)​
+- Aerobiology Research Laboratory
+
+]
